@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Whisky Bible V6.1.1 Ultimate Checked</title>
+<style>
+body{background:#120c06;color:#f5e6c8;font-family:system-ui;padding:14px;max-width:520px;margin:auto}
+h1{color:#f5c97a;text-align:center}
+label{font-size:13px;color:#c9a86a;margin-top:14px;display:block;font-weight:bold}
+input,select,textarea{width:100%;background:#221a11;border:1px solid #5a4430;color:#fff;padding:11px;border-radius:8px;margin:5px 0;box-sizing:border-box}
+.row{display:flex;gap:8px}
+.flav{display:inline-block;background:#2d2216;border:1px solid #5a4430;padding:6px 10px;border-radius:20px;margin:3px;font-size:12px;cursor:pointer}
+.flav.on{background:#f5c97a;color:#120c06;font-weight:bold}
+button{width:100%;background:#f5c97a;color:#120c06;border:none;padding:12px;border-radius:10px;font-weight:bold;margin-top:8px}
+.card{background:#221a11;border-left:4px solid #f5c97a;padding:11px;border-radius:8px;margin:10px 0;position:relative}
+.small{font-size:12px;opacity:.85;line-height:1.4}
+.dot{width:16px;height:16px;border-radius:50%;display:inline-block;border:1px solid #fff3;margin-right:6px;vertical-align:middle}
+.date-badge{position:absolute;top:8px;right:10px;font-size:11px;color:#c9a86a;background:#1a1208;padding:2px 8px;border-radius:10px;border:1px solid #5a4430}
+</style>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+<h1>📖 Whisky Bible V6.1.1</h1>
+<div id="driveStatus" class="small" style="background:#1e2a1e;padding:8px;border-radius:8px;text-align:center">☁️ 共用Sheet: 未連接 (未填link就用本地)</div>
+
+<script>
+// 改呢3個就得，唔填都用到本地版
+const SHEET_API_URL = 'https://script.google.com/macros/s/YOUR_ID/exec';
+const GEMINI_KEY = 'YOUR_GEMINI_FREE_KEY';
+const MY_NICKNAME = '阿明';
+</script>
+
+<label>📸 AI + Barcode (免費)</label>
+<div class="row">
+<button onclick="document.getElementById('camInput').click()" style="background:#2d2216;color:#f5c97a;border:1px dashed #f5c97a">📷 影酒標AI填</button>
+<button onclick="startBarcode()" style="background:#2d2216;color:#34A853;border:1px solid #34A853">📦 掃Barcode</button>
+</div>
+<input type="file" id="camInput" accept="image/*" capture="environment" style="display:none">
+<div id="reader" style="display:none;width:100%;margin-top:8px"></div>
+<div id="aiStatus" class="small" style="margin-top:6px;color:#f5c97a"></div>
+
+<label>酒名 Title *</label><input id="name" placeholder="e.g. Yamazaki 12">
+<div class="row"><div style="flex:1"><label>ABV %</label><input id="abv" type="number" placeholder="43"></div><div style="flex:1"><label>Price $</label><input id="price" type="number" placeholder="680"></div></div>
+<label>Place</label><input id="place" placeholder="e.g. CWB Cask">
+
+<label>1. 顏色 0-10 Bible</label>
+<select id="colorScale" onchange="changeColor()"><option value="#f5f5dc" data-name="0 Clear">0 Clear - 透明</option><option value="#f7f3a0" data-name="1 Pale Straw">1 Pale Straw</option><option value="#f0d878" data-name="2 Straw">2 Straw</option><option value="#e8c04a" data-name="3 Pale Gold">3 Pale Gold</option><option value="#d8a832" data-name="4 Gold" selected>4 Gold - 金黃</option><option value="#c68a28" data-name="5 Old Gold">5 Old Gold</option><option value="#b36d22" data-name="6 Amber">6 Amber</option><option value="#a0521c" data-name="7 Deep Amber">7 Deep Amber</option><option value="#8a3d18" data-name="8 Copper">8 Copper</option><option value="#6d2814" data-name="9 Full Copper">9 Full Copper</option><option value="#3d1510" data-name="10 Dark Mahogany">10 Dark Mahogany</option></select>
+<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span id="colorPreview" class="dot" style="background:#d8a832;width:22px;height:22px"></span><span id="colorLabel" class="small">4 Gold</span></div>
+
+<label>2. Nose (可多選 + 自打Enter變新掣)</label><div id="aromas"></div><input id="aromaInput" placeholder="自打香氣按Enter">
+<label>3. Taste (可多選 + 自打Enter變新掣)</label><div id="palates"></div><input id="palateInput" placeholder="自打味道按Enter">
+<div class="row"><div style="flex:1"><label>Finish</label><select id="finish"><option>短 Short</option><option>中 Medium</option><option selected>長 Long</option><option>超長 Very Long</option></select></div><div style="flex:1"><label>Balance /25</label><input id="balance" type="number" placeholder="22"></div></div>
+<label>Score /100</label><input id="score" type="number" placeholder="88"><label>Note</label><textarea id="note"></textarea>
+
+<button onclick="saveWhisky()">💾 儲存 (本地+共用Sheet)</button>
+<div class="row"><button onclick="loadFromSheet()" style="background:#2d2216;color:#f5c97a;border:1px solid #5a4430">☁️ 同步共用</button><button onclick="exportData()" style="background:#2d2216;color:#f5c97a;border:1px solid #5a4430">📤 Export</button></div>
+<div id="list" style="margin-top:18px"></div>
+
+<script>
+var aromaBible=["Cereal 穀物","Fruity 果香","Floral 花香","Peaty 泥煤","Smoky 煙燻","Honey 蜂蜜","Vanilla 香草","Citrus 柑橘","Malty 麥芽","Nutty 果仁","Chocolate 朱古力","Spicy 辛香","Sulphury 硫磺","Oily 油潤","Maritime 海味"];
+var palateBible=["Sweet 甜","Sour 酸","Salty 鹹","Bitter 苦","Oily 油","Dry 乾","Spicy 辛","Peaty 泥煤","Smoky 煙燻","Honeyed 蜜","Fruity 果","Malty 麥","Woody 木","Creamy 奶油","Chocolatey 朱古力","Long Finish 長回甘"];
+var selA=[], selP=[], data=[]; try{ data=JSON.parse(localStorage.getItem('whiskyBibleV5')||'[]'); }catch(e){}
+function renderChoices(){ let aH=''; for(let a of aromaBible) aH+=`<span class="${selA.includes(a)?'flav on':'flav'}" onclick="toggleA(this,'${a.replace(/'/g,"\\'")}')">${a}</span>`; document.getElementById('aromas').innerHTML=aH; let pH=''; for(let p of palateBible) pH+=`<span class="${selP.includes(p)?'flav on':'flav'}" onclick="toggleP(this,'${p.replace(/'/g,"\\'")}')">${p}</span>`; document.getElementById('palates').innerHTML=pH; }
+function toggleA(el,v){ el.classList.toggle('on'); let i=selA.indexOf(v); if(i>=0) selA.splice(i,1); else selA.push(v); }
+function toggleP(el,v){ el.classList.toggle('on'); let i=selP.indexOf(v); if(i>=0) selP.splice(i,1); else selP.push(v); }
+function changeColor(){ let o=document.getElementById('colorScale'); let opt=o.options[o.selectedIndex]; document.getElementById('colorPreview').style.background=opt.value; document.getElementById('colorLabel').innerText=opt.getAttribute('data-name')+' '+opt.value; }
+let html5Qr; function startBarcode(){ document.getElementById('reader').style.display='block'; html5Qr=new Html5Qrcode("reader"); html5Qr.start({facingMode:"environment"},{fps:10,qrbox:250}, async (code)=>{ document.getElementById('aiStatus').innerText='掃到:'+code; html5Qr.stop(); document.getElementById('reader').style.display='none'; try{ let r=await fetch('https://world.openfoodfacts.org/api/v0/product/'+code+'.json'); let j=await r.json(); if(j.product?.product_name){ document.getElementById('name').value=j.product.product_name; document.getElementById('aiStatus').innerText='✅ 搵到:'+j.product.product_name; } }catch(e){} },()=>{}); }
+document.getElementById('camInput').addEventListener('change', async (e)=>{ let file=e.target.files[0]; if(!file) return; if(GEMINI_KEY.includes('YOUR_')){ document.getElementById('aiStatus').innerText='去 aistudio.google.com 攞免費Key填入最頂'; return; } document.getElementById('aiStatus').innerText='🤖 Gemini分析中...'; let b64=await new Promise(r=>{ let fr=new FileReader(); fr.onload=()=>r(fr.result.split(',')[1]); fr.readAsDataURL(file); }); try{ let resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:"Return ONLY JSON {name,abv}"},{inline_data:{mime_type:file.type,data:b64}}]}]})}); let j=await resp.json(); let txt=j.candidates?.[0]?.content?.parts?.[0]?.text||''; let m=txt.match(/\{[\s\S]*\}/); if(m){ let d=JSON.parse(m[0]); if(d.name) document.getElementById('name').value=d.name; if(d.abv) document.getElementById('abv').value=d.abv; document.getElementById('aiStatus').innerText='✅ AI:'+d.name; } }catch(err){ document.getElementById('aiStatus').innerText='失敗:'+err; } });
+async function saveWhisky(){ let nameV=document.getElementById('name').value.trim(); if(!nameV){ alert('酒名未填！'); return; } let cs=document.getElementById('colorScale'); let opt=cs.options[cs.selectedIndex]; let now=new Date(); let dateStr=now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate(); let obj={name:nameV,abv:document.getElementById('abv').value,price:document.getElementById('price').value,place:document.getElementById('place').value,color:opt.value,colorName:opt.getAttribute('data-name'),aromas:selA.slice(),palates:selP.slice(),finish:document.getElementById('finish').value,balance:document.getElementById('balance').value,score:document.getElementById('score').value,note:document.getElementById('note').value,date:dateStr,who:MY_NICKNAME}; data.push(obj); localStorage.setItem('whiskyBibleV5',JSON.stringify(data)); draw(); if(SHEET_API_URL.includes('https://')){ try{ await fetch(SHEET_API_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(obj)}); document.getElementById('driveStatus').innerText='✅ 已同步 '+dateStr+' '+obj.name+' by '+MY_NICKNAME; }catch(e){} } alert('已儲存: '+nameV+' Price: $'+obj.price+' 日期:'+dateStr); document.getElementById('name').value=''; document.getElementById('note').value=''; selA=[]; selP=[]; renderChoices(); }
+async function loadFromSheet(){ if(!SHEET_API_URL.includes('https://')||SHEET_API_URL.includes('YOUR_ID')){ alert('未填SHEET_API_URL，用本地版'); return; } document.getElementById('driveStatus').innerText='☁️ 同步中...'; try{ let r=await fetch(SHEET_API_URL); let j=await r.json(); data=j; localStorage.setItem('whiskyBibleV5',JSON.stringify(data)); draw(); document.getElementById('driveStatus').innerText='✅ 已同步 '+data.length+' 支'; }catch(e){ document.getElementById('driveStatus').innerText='同步失敗'; } }
+function draw(){ let html='<h3>收藏 ('+data.length+')</h3>'; for(let i=data.length-1;i>=0;i--){ let w=data[i]; html+=`<div class=card><span class=date-badge>📅 ${w.date||''}</span><b style=color:#f5c97a><span class=dot style="background:${w.color}"></span>${w.name}</b> ${w.score? w.score+'/100':''}<br><span class=small>Price: $${w.price||'-'} · ${w.abv||'-'}% · ${w.colorName} · Finish:${w.finish} · Bal:${w.balance||'-'}/25 · by ${w.who||'-'}</span><br><span class=small>Nose: ${(w.aromas||[]).join('、')||'-'}</span><br><span class=small>Taste: ${(w.palates||[]).join('、')||'-'}</span><br><span class=small>📍${w.place||''} · ${w.note||''}</span></div>`; } document.getElementById('list').innerHTML=html; }
+function exportData(){ let b=new Blob([JSON.stringify(data)],{type:'application/json'}); let a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='whisky-bible.json'; a.click(); }
+document.getElementById('aromaInput').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); let v=this.value.trim(); if(v){ if(!aromaBible.includes(v)) aromaBible.push(v); if(!selA.includes(v)) selA.push(v); this.value=''; renderChoices(); } }});
+document.getElementById('palateInput').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); let v=this.value.trim(); if(v){ if(!palateBible.includes(v)) palateBible.push(v); if(!selP.includes(v)) selP.push(v); this.value=''; renderChoices(); } }});
+renderChoices(); changeColor(); draw();
+if(SHEET_API_URL.includes('https://') &&!SHEET_API_URL.includes('YOUR_ID')) loadFromSheet();
+</script>
+</body></html>
